@@ -1,4 +1,4 @@
-# KeyCloak Add-On for DDEV
+# Keycloak Add-On for DDEV
 
 This DDEV add-on provides a [Keycloak](https://www.keycloak.org/) service for DDEV.
 
@@ -25,7 +25,7 @@ Password: `test`
 ## Configuration
 
 The configuration is managed using JSON files in `.ddev/keycloak/import`.
-Add the JSON files to git so it can be shared between users.
+Add the JSON files to git, so it can be shared between users.
 
 Import realms and users:
 
