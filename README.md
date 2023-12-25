@@ -49,4 +49,11 @@ ddev kcctl export <realm, optional>
 ddev kc --help
 ```
 
+## Theming
+
+`.ddev/keycloak/themes` includes a basic example for the login theme called `ddev`.
+
+* Theming [docs](https://www.keycloak.org/docs/latest/server_development/index.html#_themes)
+* Example [themes](https://github.com/keycloak/keycloak/tree/main/examples/themes/src/main/resources/theme)
+
 **Maintained by [@b13](https://github.com/b13)**

@@ -4,5 +4,6 @@ name: keycloak
 project_files:
   - docker-compose.keycloak.yaml
   - keycloak/import/
+  - keycloak/themes/
   - commands/keycloak/kc
   - commands/host/kcctl
