@@ -12,12 +12,12 @@ ddev get b13/ddev-keycloak && ddev restart
 
 ### Credentials
 
-**Admin:**
+**Admin - master realm**
 
 User: `admin`
 Password: `password`
 
-**Test:**
+**Test - ddev realm**
 
 User: `test`
 Password: `test`
