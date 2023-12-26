@@ -3,8 +3,6 @@
 @test "Send request from 'web' to the api" {
     run ddev exec "sleep 10 && curl --fail -H 'Content-Type: application/json' -X GET \"http://keycloak:8080\""
 
-    echo $output
-
     [ "$status" -eq 0 ]
     [[ "$output" == *"Administration Console"* ]]
 }
@@ -38,7 +36,7 @@
 }
 
 @test "Test kc command" {
-  run ddev kc --help
+  run ddev kc
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Keycloak - Open Source Identity and Access Management"* ]]
