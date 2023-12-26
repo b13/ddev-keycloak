@@ -16,6 +16,7 @@ services:
       - KEYCLOAK_ADMIN_PASSWORD=password
     volumes:
       - "keycloak:/opt/keycloak/data/"
+      - ".:/mnt/ddev_config"
       - "./keycloak/themes:/opt/keycloak/themes/"
   web:
     links:
