@@ -22,6 +22,7 @@ permissions:
 jobs:
   tests:
     strategy:
+      max-parallel: 1
       matrix:
         ddev_version: [stable, HEAD]
       fail-fast: false
