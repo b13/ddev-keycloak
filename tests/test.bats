@@ -1,7 +1,8 @@
 #!/bin/bash
 
 @test "Send request from 'web' to the api" {
-    run ddev exec "sleep 10 && curl --fail -H 'Content-Type: application/json' -X GET \"http://keycloak:8080\""
+    sleep 10
+    run ddev exec "curl --fail -H 'Content-Type: application/json' -X GET \"http://keycloak:8080\""
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Administration Console"* ]]
