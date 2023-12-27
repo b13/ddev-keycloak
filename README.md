@@ -33,7 +33,7 @@ Import realms and users:
 ddev kcctl import
 ```
 
-Export realms and users:
+Export realms and users to `.ddev/keycloak/import`:
 
 ```bash
 ddev kcctl export <realm, optional>
