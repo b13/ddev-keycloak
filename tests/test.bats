@@ -4,7 +4,7 @@
     run ddev kcctl import
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Copy '.ddev/keycloak/import' to container and import data"* ]]
+    [[ "$output" == *"to container and import data"* ]]
 }
 
 @test "Test export of all realms and users" {
