@@ -43,6 +43,12 @@ ddev kcctl export <realm, optional>
 > The 'master' (default) realm will not be exported as it contains the admin user
 > which should not be modified at all.
 
+Delete realms and user ('master' will be recreated):
+
+```bash
+ddev kcctl delete
+```
+
 ## Running the keycloak control script
 
 ```
