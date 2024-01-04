@@ -2,7 +2,24 @@
 
 This DDEV add-on provides a [Keycloak](https://www.keycloak.org/) service for DDEV.
 
-* Theming
+Keycloak is an Open Source Identity Provider and Access Management software.
+
+**It provides ...**
+
+* Single-Sign On
+* Identity Brokering and Social Login
+* User Federation
+* Support for OpenID, SAML and oAuth2
+
+## Why?
+
+If you want to integrate an Identity Provider in your project using
+OpenID, SAML or oAuth2 this addon makes it easy to have this provider
+installed locally for testing.
+
+In general, you do not have to deal with remote servers that might give you
+a hard time to connect to from your local ddev instance. These servers are
+mostly buried behind firewalls and other security mechanism.
 
 ## Installation
 
