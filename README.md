@@ -23,6 +23,14 @@ mostly buried behind firewalls and other security mechanism.
 
 ## Installation
 
+For DDEV v1.23.5 or above run
+
+```bash
+ddev add-on get b13/ddev-keycloak && ddev restart
+```
+
+For earlier versions of DDEV run
+
 ```bash
 ddev get b13/ddev-keycloak && ddev restart
 ```
