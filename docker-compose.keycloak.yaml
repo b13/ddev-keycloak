@@ -18,6 +18,8 @@ services:
       - "keycloak:/opt/keycloak/data/"
       - ".:/mnt/ddev_config"
       - "./keycloak/themes:/opt/keycloak/themes/"
+    external_links:
+      - ddev-router:$DDEV_HOSTNAME
   web:
     links:
       - keycloak
