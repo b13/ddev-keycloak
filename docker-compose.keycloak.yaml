@@ -4,7 +4,12 @@ services:
     container_name: ddev-${DDEV_SITENAME}-keycloak
     hostname: ${DDEV_SITENAME}-keycloak
     image: quay.io/keycloak/keycloak:23.0
-    command: start-dev --proxy edge --import-realm
+    entrypoint:
+      - /bin/sh
+      - '-c'
+    command:
+     - mkdir -p /opt/keycloak/conf/truststores && cp -r /mnt/ddev-global-cache/mkcert/* /opt/keycloak/conf/truststores && /opt/keycloak/bin/kc.sh start-dev --spi-connections-http-client-default-disable-trust-manager=true --proxy edge --import-realm
+
     labels:
       com.ddev.site-name: ${DDEV_SITENAME}
       com.ddev.approot: $DDEV_APPROOT
@@ -15,11 +20,13 @@ services:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=password
     volumes:
+      - "ddev-global-cache:/mnt/ddev-global-cache:z"
       - "keycloak:/opt/keycloak/data/"
       - ".:/mnt/ddev_config"
       - "./keycloak/themes:/opt/keycloak/themes/"
     external_links:
       - ddev-router:$DDEV_HOSTNAME
+    user: '0:0'
   web:
     links:
       - keycloak
