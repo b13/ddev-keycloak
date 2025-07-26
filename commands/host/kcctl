@@ -6,6 +6,7 @@
 ## Example: ddev kcctl
 
 CONTAINER_NAME=ddev-"$DDEV_SITENAME"-keycloak
+CONTAINER_NAME_DB=ddev-"$DDEV_SITENAME"-keycloak-database
 
 CMD=$1
 case $CMD in
@@ -15,8 +16,6 @@ import)
     echo "➡️ Copy '$import_data' to container and import data"
     docker cp -q "$import_data/." "$CONTAINER_NAME:/opt/keycloak/data/import"
     docker exec -u 0 -i "$CONTAINER_NAME" chown -R keycloak:keycloak /opt/keycloak/data/import
-    docker exec -i "$CONTAINER_NAME" rm -Rf /opt/keycloak/data/h2
-    docker restart "$CONTAINER_NAME" 1>/dev/null
     ;;
 
 export)
@@ -39,8 +38,8 @@ export)
 
 delete)
     echo "➡️ Delete database and configuration in container"
-    docker exec -u 0 -i "$CONTAINER_NAME" sh -c 'rm -Rf /opt/keycloak/data/h2/* /opt/keycloak/data/import/*'
-    docker restart "$CONTAINER_NAME" 1>/dev/null
+    docker exec -u 0 -i "$CONTAINER_NAME" sh -c 'rm -Rf /opt/keycloak/data/import/*'
+    docker exec -i -u 0 "$CONTAINER_NAME_DB" mysql -uroot -pdb -e "DROP DATABASE db; CREATE DATABASE db;"
     ;;
 
 --help | *)

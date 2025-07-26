@@ -3,8 +3,10 @@ services:
   keycloak:
     container_name: ddev-${DDEV_SITENAME}-keycloak
     hostname: ${DDEV_SITENAME}-keycloak
-    image: quay.io/keycloak/keycloak:23.0
-    command: start-dev --proxy edge --import-realm
+    image: quay.io/keycloak/keycloak:26.0
+    command: start-dev --proxy-headers xforwarded --import-realm
+    depends_on:
+      - keycloak-database
     labels:
       com.ddev.site-name: ${DDEV_SITENAME}
       com.ddev.approot: $DDEV_APPROOT
@@ -14,15 +16,32 @@ services:
       - HTTPS_EXPOSE=8443:8080
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=password
+      - KC_DB=mariadb
+      - KC_DB_PASSWORD=db
+      - KC_DB_USERNAME=db
+      - KC_DB_URL_PORT=3306
+      - KC_DB_URL=jdbc:mariadb://keycloak-database:3334/db?characterEncoding=UTF-8
     volumes:
       - "keycloak:/opt/keycloak/data/"
       - ".:/mnt/ddev_config"
       - "./keycloak/themes:/opt/keycloak/themes/"
     external_links:
       - ddev-router:$DDEV_HOSTNAME
+  keycloak-database:
+    container_name: ddev-${DDEV_SITENAME}-keycloak-database
+    image: mariadb:10.11
+    environment:
+      - MYSQL_DATABASE=db
+      - MYSQL_USER=db
+      - MYSQL_PASSWORD=db
+      - MYSQL_TCP_PORT=3334
+      - MYSQL_ROOT_PASSWORD=db
+    volumes:
+      - "keycloak-db:/var/lib/mysql/"
   web:
     links:
       - keycloak
 
 volumes:
   keycloak:
+  keycloak-db:

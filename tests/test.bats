@@ -36,15 +36,16 @@
 }
 
 @test "Send request from 'web' to the api" {
-    # Wait for API to get ready
-    max_retry=30
-    counter=0
-    until ddev exec "curl --fail -H 'Content-Type: application/json' -X GET \"http://keycloak:8080\"" 2> /dev/null
-    do
-       sleep 1
-       [[ counter -eq $max_retry ]] && exit 1
-       ((counter=counter+1))
-    done
+    ddev exec bash -c "until nc -z keycloak 8080; do sleep 2; done;"
+#    # Wait for API to get ready
+#    max_retry=30
+#    counter=0
+#    until ddev exec "curl --fail -H 'Content-Type: application/json' -X GET \"http://keycloak:8080\"" 2> /dev/null
+#    do
+#       sleep 1
+#       [[ counter -eq $max_retry ]] && exit 1
+#       ((counter=counter+1))
+#    done
 
     run ddev exec "curl --fail -H 'Content-Type: application/json' -X GET \"http://keycloak:8080\""
     echo "$output"
