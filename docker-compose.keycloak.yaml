@@ -14,8 +14,10 @@ services:
       - VIRTUAL_HOST=$DDEV_HOSTNAME
       - HTTP_EXPOSE=8442:8080
       - HTTPS_EXPOSE=8443:8080
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=password
+      - KC_LOG_LEVEL=DEBUG
+      - KC_LOG_CONSOLE_OUTPUT=default
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=password
       - KC_DB=mariadb
       - KC_DB_PASSWORD=db
       - KC_DB_USERNAME=db

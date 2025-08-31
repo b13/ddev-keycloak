@@ -5,7 +5,7 @@ setup_suite() {
   set -eu -o pipefail
   export TESTDIR=~/tmp/test-keycloak-addon
   mkdir -p $TESTDIR
-  export PROJNAME=test-addon-keycloak
+  export PROJNAME=test-keycloak-addon
   export DDEV_NON_INTERACTIVE=true
 
   ddev delete -Oy ${PROJNAME} >/dev/null 2>&1 || true
