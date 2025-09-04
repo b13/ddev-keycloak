@@ -7,4 +7,3 @@
 ## Example: ddev kc --help
 
 /opt/keycloak/bin/kc.sh $@
-
