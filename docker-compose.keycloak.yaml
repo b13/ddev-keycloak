@@ -1,9 +1,12 @@
 #ddev-generated
+# Every value below can be overridden without touching this file: put it in
+# `.ddev/.env.keycloak` (see `.ddev/.env.keycloak.example`). DDEV applies that
+# file to the `keycloak` service *after* this one, so it always wins.
 services:
   keycloak:
     container_name: ddev-${DDEV_SITENAME}-keycloak
     hostname: ${DDEV_SITENAME}-keycloak
-    image: quay.io/keycloak/keycloak:26.0
+    image: quay.io/keycloak/keycloak:${KEYCLOAK_TAG:-26.0}
     command: start-dev --proxy-headers xforwarded --import-realm
     depends_on:
       - keycloak-database
@@ -11,10 +14,42 @@ services:
       com.ddev.site-name: ${DDEV_SITENAME}
       com.ddev.approot: $DDEV_APPROOT
     environment:
+      # Direct route through ddev-router, on a port of its own. Kept for
+      # convenience; the canonical address is the path prefix below, which is
+      # the only one that survives an arbitrary reverse proxy in front of DDEV.
       - VIRTUAL_HOST=$DDEV_HOSTNAME
       - HTTP_EXPOSE=8442:8080
       - HTTPS_EXPOSE=8443:8080
-      - KC_LOG_LEVEL=DEBUG
+
+      # Serve everything - including the admin console and its assets - below
+      # /keycloak, so the web container can forward the request URI unchanged.
+      # Changing this means changing .ddev/nginx/keycloak.conf and
+      # .ddev/apache/keycloak.conf with it.
+      - KC_HTTP_RELATIVE_PATH=/keycloak
+
+      # The origin Keycloak writes into everything it generates: the SAML/OIDC
+      # metadata entityID, every SSO/SLO Location, every redirect. Without it
+      # Keycloak derives those from the incoming request, so a service fetching
+      # metadata over the Docker network at http://keycloak:8080 gets a document
+      # advertising http://keycloak:8080 - endpoints no browser can reach, and
+      # an issuer that will not match the assertion the browser flow produces.
+      #
+      # Keycloak does *not* append KC_HTTP_RELATIVE_PATH to a hostname given as
+      # a URL, so the prefix has to appear here as well.
+      #
+      # In CI, or behind any proxy that serves this project under a different
+      # name, override KC_HOSTNAME in .ddev/.env.keycloak - DDEV_PRIMARY_URL is
+      # always the project's own <name>.<tld>, never an additional_fqdns entry.
+      - KC_HOSTNAME=${DDEV_PRIMARY_URL:-https://${DDEV_SITENAME}.${DDEV_TLD}}/keycloak
+      # Accept requests arriving under any other name too - the internal
+      # http://keycloak:8080 among them - while still generating the URLs above.
+      - KC_HOSTNAME_STRICT=false
+      # The point of the whole arrangement: back-channel callers must be handed
+      # the same public URLs as a browser, not the address they happened to
+      # arrive on. This is Keycloak's default; pinned because it is load-bearing.
+      - KC_HOSTNAME_BACKCHANNEL_DYNAMIC=false
+
+      - KC_LOG_LEVEL=INFO
       - KC_LOG_CONSOLE_OUTPUT=default
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin
       - KC_BOOTSTRAP_ADMIN_PASSWORD=password
@@ -25,7 +60,7 @@ services:
       - KC_DB_URL=jdbc:mariadb://keycloak-database:3334/db?characterEncoding=UTF-8
     volumes:
       - "keycloak:/opt/keycloak/data/"
-      - ".:/mnt/ddev_config"
+      - ".:/mnt/ddev_config:ro"
       - "./keycloak/themes:/opt/keycloak/themes/"
     external_links:
       - ddev-router:$DDEV_HOSTNAME

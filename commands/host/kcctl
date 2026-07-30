@@ -1,58 +1,156 @@
 #!/usr/bin/env bash
 #ddev-generated
 
-## Description: Create and destroy solr cores and configsets
-## Usage: kcctl <realm>
-## Example: ddev kcctl
-
-CONTAINER_NAME=ddev-"$DDEV_SITENAME"-keycloak
-CONTAINER_NAME_DB=ddev-"$DDEV_SITENAME"-keycloak-database
+## Description: Import, export and delete Keycloak realms and users
+## Usage: kcctl <import|export|delete> [realm]
+## Example: "ddev kcctl import" or "ddev kcctl export ddev" or "ddev kcctl delete ddev"
 
 set -eu -o pipefail
 
-CMD=$1
+CONTAINER_NAME=ddev-"${DDEV_SITENAME}"-keycloak
+CONTAINER_NAME_DB=ddev-"${DDEV_SITENAME}"-keycloak-database
+IMPORT_DIR="$DDEV_APPROOT/.ddev/keycloak/import"
+CONTAINER_IMPORT_DIR=/opt/keycloak/data/import
+
+CMD="${1:---help}"
 REALM_NAME="${2:-}"
+
+function container_env() {
+    # Reads a variable from the running container, so overrides made in
+    # .ddev/.env.keycloak are picked up instead of being guessed at.
+    docker exec "$CONTAINER_NAME" printenv "$1" 2>/dev/null || true
+}
+
+function wait_for_keycloak() {
+    if [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null)" != "true" ]; then
+        echo "❌ $CONTAINER_NAME is not running. Run 'ddev start' first." >&2
+        exit 1
+    fi
+
+    local waited=0
+    until docker exec "$CONTAINER_NAME" bash -c "exec 3<>/dev/tcp/127.0.0.1/8080" >/dev/null 2>&1; do
+        if [ "$waited" -ge 120 ]; then
+            echo "❌ Keycloak did not come up within 120s. Try 'ddev logs -s keycloak'." >&2
+            exit 1
+        fi
+        echo "Waiting for Keycloak to start..."
+        sleep 2
+        waited=$((waited + 2))
+    done
+}
 
 function restart() {
     docker restart "$CONTAINER_NAME" >/dev/null
-    # Wait for the keycloak container to become available again
-    ddev exec bash -c "until nc -z keycloak 8080; do echo 'Waiting for Keycloak to start...' && sleep 2; done;"
+    wait_for_keycloak
+}
+
+# Copies the import directory into a staging directory, substituting the
+# environment-dependent values a realm cannot hardcode. Only these five names
+# are replaced - a blanket substitution would eat Keycloak's own message-bundle
+# placeholders such as "${role_default-roles}".
+function render_import_dir() {
+    local staging="$1"
+    local public_url
+    public_url="$(container_env KC_HOSTNAME)"
+
+    cp -R "$IMPORT_DIR/." "$staging/"
+
+    local file
+    while IFS= read -r file; do
+        sed \
+            -e "s|\${KEYCLOAK_PUBLIC_URL}|${public_url}|g" \
+            -e "s|\${DDEV_PRIMARY_URL}|${DDEV_PRIMARY_URL:-}|g" \
+            -e "s|\${DDEV_HOSTNAME}|${DDEV_HOSTNAME:-}|g" \
+            -e "s|\${DDEV_SITENAME}|${DDEV_SITENAME:-}|g" \
+            -e "s|\${DDEV_TLD}|${DDEV_TLD:-}|g" \
+            "$file" >"$file.rendered"
+        mv "$file.rendered" "$file"
+    done < <(find "$staging" -type f -name '*.json')
 }
 
 case $CMD in
 import)
-    # Copy files to the keycloak volume
-    import_data="$DDEV_APPROOT/.ddev/keycloak/import"
-    echo "➡️  Copy '$import_data' to container and import data"
-    docker cp -q "$import_data/." "$CONTAINER_NAME:/opt/keycloak/data/import"
-    docker exec -u 0 -i "$CONTAINER_NAME" chown -R keycloak:keycloak /opt/keycloak/data/import
+    if [ ! -d "$IMPORT_DIR" ]; then
+        echo "❌ No import directory at $IMPORT_DIR" >&2
+        exit 1
+    fi
+    wait_for_keycloak
+
+    staging="$(mktemp -d)"
+    trap 'rm -rf "$staging"' EXIT
+    render_import_dir "$staging"
+
+    echo "➡️  Copy '$IMPORT_DIR' to container and import data"
+    docker exec -u 0 -i "$CONTAINER_NAME" rm -rf "$CONTAINER_IMPORT_DIR"
+    docker exec -u 0 -i "$CONTAINER_NAME" mkdir -p "$CONTAINER_IMPORT_DIR"
+    docker cp -q "$staging/." "$CONTAINER_NAME:$CONTAINER_IMPORT_DIR"
+    docker exec -u 0 -i "$CONTAINER_NAME" chown -R keycloak:keycloak "$CONTAINER_IMPORT_DIR"
+
+    # --override true, unlike the --import-realm flag the server boots with,
+    # which silently skips a realm that already exists. Without this, editing a
+    # realm file and re-importing it is a no-op.
+    docker exec -i "$CONTAINER_NAME" /opt/keycloak/bin/kc.sh import \
+        --dir "$CONTAINER_IMPORT_DIR" --override true
+
+    # The server has been running against this database the whole time; restart
+    # it so it picks the imported realms up rather than serving cached ones.
     restart
+    echo "✅ Import complete"
     ;;
 
 export)
-    REALM=""
-    if [ "$REALM_NAME" != "" ]; then
-        REALM="--realm $REALM_NAME"
-    fi
-
     if [ "$REALM_NAME" = "master" ]; then
         echo "'master' is not exported because it is the default realm. Please use the 'ddev' realm or any other you want to export."
         exit 0
     fi
+    wait_for_keycloak
 
-    export_data="$DDEV_APPROOT/.ddev/keycloak/import"
-    docker exec -u 0 -i "$CONTAINER_NAME" sh -c "rm -Rf /opt/keycloak/data/import/$REALM*"
-    ddev exec -s keycloak /opt/keycloak/bin/kc.sh export --users same_file "$REALM" --dir /opt/keycloak/data/import
-    docker exec -u 0 -i "$CONTAINER_NAME" sh -c 'rm -f /opt/keycloak/data/import/master-*'
-    docker cp -q "$CONTAINER_NAME:/opt/keycloak/data/import/." "$export_data/"
+    REALM_ARGS=()
+    if [ -n "$REALM_NAME" ]; then
+        REALM_ARGS=(--realm "$REALM_NAME")
+        # Quoted and kept apart from the flag, so this removes the stale export
+        # of the named realm rather than a file literally called '--realm'.
+        docker exec -u 0 -i "$CONTAINER_NAME" \
+            sh -c 'rm -Rf "$1/$2"-*' _ "$CONTAINER_IMPORT_DIR" "$REALM_NAME"
+    else
+        docker exec -u 0 -i "$CONTAINER_NAME" \
+            sh -c 'rm -Rf "$1"/*' _ "$CONTAINER_IMPORT_DIR"
+    fi
+
+    # ${a[@]+"${a[@]}"} because macOS still ships bash 3.2, where expanding an
+    # empty array under `set -u` aborts the script.
+    docker exec -i "$CONTAINER_NAME" /opt/keycloak/bin/kc.sh export \
+        --users same_file ${REALM_ARGS[@]+"${REALM_ARGS[@]}"} --dir "$CONTAINER_IMPORT_DIR"
+    docker exec -u 0 -i "$CONTAINER_NAME" \
+        sh -c 'rm -f "$1"/master-*' _ "$CONTAINER_IMPORT_DIR"
+    docker cp -q "$CONTAINER_NAME:$CONTAINER_IMPORT_DIR/." "$IMPORT_DIR/"
     restart
+    echo "✅ Export complete, see $IMPORT_DIR"
     ;;
 
 delete)
-    echo "➡️  Delete database and configuration in container"
-    docker exec -u 0 -i "$CONTAINER_NAME" sh -c 'rm -Rf /opt/keycloak/data/import/*'
-    docker exec -i -u 0 "$CONTAINER_NAME_DB" mysql -uroot -pdb -e "DROP DATABASE db; CREATE DATABASE db;"
-    restart
+    if [ -n "$REALM_NAME" ]; then
+        if [ "$REALM_NAME" = "master" ]; then
+            echo "❌ Refusing to delete the 'master' realm - it holds the admin user." >&2
+            exit 1
+        fi
+        wait_for_keycloak
+        echo "➡️  Delete realm '$REALM_NAME'"
+        relative_path="$(container_env KC_HTTP_RELATIVE_PATH)"
+        docker exec -i "$CONTAINER_NAME" /opt/keycloak/bin/kcadm.sh config credentials \
+            --server "http://127.0.0.1:8080${relative_path}" \
+            --realm master \
+            --user "$(container_env KC_BOOTSTRAP_ADMIN_USERNAME)" \
+            --password "$(container_env KC_BOOTSTRAP_ADMIN_PASSWORD)" >/dev/null
+        docker exec -i "$CONTAINER_NAME" /opt/keycloak/bin/kcadm.sh delete "realms/$REALM_NAME"
+        echo "✅ Realm '$REALM_NAME' deleted"
+    else
+        echo "➡️  Delete database and configuration in container"
+        docker exec -u 0 -i "$CONTAINER_NAME" sh -c 'rm -Rf /opt/keycloak/data/import/*'
+        docker exec -i -u 0 "$CONTAINER_NAME_DB" mysql -uroot -pdb -e "DROP DATABASE db; CREATE DATABASE db;"
+        restart
+        echo "✅ All realms and users deleted"
+    fi
     ;;
 
 --help | *)
@@ -61,17 +159,17 @@ delete)
     echo "——————————————"
     echo -e "\033[1mImport\033[0m"
     echo "—————"
-    echo "Push config to keycloak and import it"
+    echo "Push config to keycloak and import it, replacing realms that already exist"
     echo "👉 ddev kcctl import"
     echo ""
-    echo -e "\033[1mImport\033[0m"
+    echo -e "\033[1mExport\033[0m"
     echo "—————"
     echo "Export current config (realms and users) to .ddev/keycloak/import"
     echo "👉 ddev kcctl export <realm> - Exports all if no realm defined"
     echo ""
-    echo -e "\033[1mWipe\033[0m"
+    echo -e "\033[1mDelete\033[0m"
     echo "—————"
-    echo "Delete all realms and users"
-    echo "👉 ddev kcctl delete"
+    echo "Delete a single realm, or every realm and user if none is given"
+    echo "👉 ddev kcctl delete <realm>"
     ;;
 esac
