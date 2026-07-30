@@ -3,7 +3,24 @@ name: keycloak
 
 project_files:
   - docker-compose.keycloak.yaml
+  - .env.keycloak.example
   - keycloak/import/
   - keycloak/themes/
+  - nginx/keycloak.conf
+  - apache/keycloak.conf
   - commands/keycloak/kc
   - commands/host/kcctl
+
+post_install_actions:
+  - |
+    #ddev-nodisplay
+    if [ "${DDEV_WEBSERVER_TYPE}" != "nginx-fpm" ] && [ "${DDEV_WEBSERVER_TYPE}" != "apache-fpm" ]; then
+      echo "⚠️  webserver_type is '${DDEV_WEBSERVER_TYPE}': the add-on cannot serve Keycloak"
+      echo "   under ${DDEV_PRIMARY_URL}/keycloak, because that proxy lives in the web server."
+      echo "   Keycloak is still reachable on port 8443, and you can point KC_HOSTNAME at"
+      echo "   whatever address you route to it yourself. See the add-on README."
+    fi
+  - |
+    #ddev-nodisplay
+    echo "Keycloak will be available at ${DDEV_PRIMARY_URL}/keycloak after 'ddev restart'."
+    echo "Run 'ddev kcctl import' to load the realms in .ddev/keycloak/import."
