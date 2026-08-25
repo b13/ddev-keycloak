@@ -16,6 +16,7 @@ services:
       - HTTPS_EXPOSE=8443:8080
       - KC_LOG_LEVEL=DEBUG
       - KC_LOG_CONSOLE_OUTPUT=default
+      - KC_HOSTNAME=https://${DDEV_SITENAME}.${DDEV_TLD}:8443
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin
       - KC_BOOTSTRAP_ADMIN_PASSWORD=password
       - KC_DB=mariadb

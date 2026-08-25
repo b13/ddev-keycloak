@@ -45,6 +45,16 @@
     [[ "$output" == *"Administration Console"* ]]
 }
 
+@test "Metadata fetched internally advertises the browser-reachable URL" {
+    ddev exec bash -c "until nc -z keycloak 8080; do sleep 2; done;"
+
+    run ddev exec curl -s --fail http://keycloak:8080/realms/master/protocol/saml/descriptor
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"https://test-keycloak-addon.ddev.site:8443/realms/master"* ]]
+    [[ "$output" != *"http://keycloak:8080"* ]]
+}
+
 @test "Docker images are overridable via .ddev/.env.keycloak" {
     cd "${TESTDIR}"
 
