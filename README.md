@@ -51,10 +51,10 @@ ddev restart
 Commit the `.ddev/.env.keycloak` file to version control so the whole team
 runs the same images.
 
-| Variable                   | Flag                         | Default                            |
-|----------------------------|------------------------------|------------------------------------|
-| `KEYCLOAK_DOCKER_IMAGE`    | `--keycloak-docker-image`    | `quay.io/keycloak/keycloak:26.0`   |
-| `KEYCLOAK_DB_DOCKER_IMAGE` | `--keycloak-db-docker-image` | `mariadb:10.11`                    |
+| Variable                   | Flag                         | Default                          |
+|----------------------------|------------------------------|----------------------------------|
+| `KEYCLOAK_DOCKER_IMAGE`    | `--keycloak-docker-image`    | `quay.io/keycloak/keycloak:26.7` |
+| `KEYCLOAK_DB_DOCKER_IMAGE` | `--keycloak-db-docker-image` | `mariadb:10.11`                  |
 
 > [!IMPORTANT]
 > Keycloak migrates its database schema forward automatically when you upgrade,

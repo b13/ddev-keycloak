@@ -50,7 +50,7 @@
 
     run docker inspect --format '{{.Config.Image}}' ddev-${PROJNAME}-keycloak
     [ "$status" -eq 0 ]
-    [[ "$output" == "quay.io/keycloak/keycloak:26.0" ]]
+    [[ "$output" == "quay.io/keycloak/keycloak:26.7" ]]
 
     ddev dotenv set .ddev/.env.keycloak --keycloak-docker-image="quay.io/keycloak/keycloak:26.1"
     ddev restart -y >/dev/null

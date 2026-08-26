@@ -3,7 +3,7 @@ services:
   keycloak:
     container_name: ddev-${DDEV_SITENAME}-keycloak
     hostname: ${DDEV_SITENAME}-keycloak
-    image: ${KEYCLOAK_DOCKER_IMAGE:-quay.io/keycloak/keycloak:26.0}
+    image: ${KEYCLOAK_DOCKER_IMAGE:-quay.io/keycloak/keycloak:26.7}
     command: start-dev --proxy-headers xforwarded --import-realm
     depends_on:
       - keycloak-database
