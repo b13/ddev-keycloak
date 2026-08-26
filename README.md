@@ -117,6 +117,24 @@ ddev kcctl delete
 ddev kc --help
 ```
 
+## URLs and metadata
+
+Keycloak is reachable in the browser at `https://<project>.ddev.site:8443`
+(and `http://<project>.ddev.site:8442`).
+
+From other containers — for example the `web` container fetching an IdP metadata
+document — use the internal address `http://keycloak:8080`:
+
+```
+SSO_METADATAURL="http://keycloak:8080/realms/<realm>/protocol/saml/descriptor"
+```
+
+The add-on pins Keycloak's public base URL via `KC_HOSTNAME`, so the URLs inside
+the returned metadata (entity ID, SSO `Location` endpoints, OIDC issuer and
+endpoints) always stay the browser-reachable `https://<project>.ddev.site:8443/...`
+ones, even though the document was requested internally. The SSO redirects
+therefore work in the browser.
+
 ## Theming
 
 `.ddev/keycloak/themes` includes a basic example for the login theme called `ddev`.
