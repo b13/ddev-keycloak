@@ -35,6 +35,43 @@ For earlier versions of DDEV run
 ddev get b13/ddev-keycloak && ddev restart
 ```
 
+### Using alternate images
+
+The add-on ships with a default Keycloak and MariaDB image, but both can be
+pointed somewhere else — a different version, a mirror registry, or a locally
+built Keycloak image containing your own providers/SPIs.
+
+```bash
+# Change the image as appropriate.
+ddev dotenv set .ddev/.env.keycloak --keycloak-docker-image="quay.io/keycloak/keycloak:26.4"
+
+ddev restart
+```
+
+Commit the `.ddev/.env.keycloak` file to version control so the whole team
+runs the same images.
+
+| Variable                   | Flag                         | Default                          |
+|----------------------------|------------------------------|----------------------------------|
+| `KEYCLOAK_DOCKER_IMAGE`    | `--keycloak-docker-image`    | `quay.io/keycloak/keycloak:26.7` |
+| `KEYCLOAK_DB_DOCKER_IMAGE` | `--keycloak-db-docker-image` | `mariadb:10.11`                  |
+
+> [!IMPORTANT]
+> Keycloak migrates its database schema forward automatically when you upgrade,
+> but it refuses to start against a database that was already migrated by a
+> *newer* version. For a downgrade — or when switching the database image to a
+> different engine — wipe the volumes first:
+>
+> ```bash
+> ddev stop
+> docker volume rm ddev-<project>_keycloak ddev-<project>_keycloak-db
+> ddev restart
+> ```
+>
+> This discards the realms and users inside the container, so run
+> `ddev kcctl import` afterwards. That is exactly why the JSON files in
+> `.ddev/keycloak/import` belong in git.
+
 ### Credentials
 
 **Admin - master realm**
