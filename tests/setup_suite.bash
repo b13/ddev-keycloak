@@ -23,5 +23,13 @@ teardown_suite() {
   set -eu -o pipefail
   cd ${TESTDIR} || ( printf "unable to cd to ${TESTDIR}\n" && exit 1 )
   ddev delete -Oy ${PROJNAME} >/dev/null 2>&1
-  [ "${TESTDIR}" != "" ] && sudo rm -rf ${TESTDIR}
+  cd /
+  # Plain rm is enough in the normal case; sudo is only a fallback for
+  # root-owned leftovers, and it cannot prompt in a non-interactive run.
+  # Cleanup must never fail the suite after the tests themselves passed.
+  if [ "${TESTDIR}" != "" ]; then
+    rm -rf "${TESTDIR}" 2>/dev/null \
+      || sudo -n rm -rf "${TESTDIR}" 2>/dev/null \
+      || printf "warning: could not remove %s\n" "${TESTDIR}" >&2
+  fi
 }

@@ -72,3 +72,32 @@
     rm -f .ddev/.env.keycloak
     ddev restart -y >/dev/null
 }
+
+@test "The ddev mkcert root CA is present in Keycloak's truststore" {
+    ddev exec bash -c "until nc -z keycloak 8080; do sleep 2; done;"
+
+    run ddev exec -s keycloak cat /opt/keycloak/conf/truststores/rootCA.pem
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"BEGIN CERTIFICATE"* ]]
+}
+
+@test "Keycloak trusts the ddev certificate for its own outgoing HTTPS calls" {
+    ddev exec bash -c "until nc -z keycloak 8080; do sleep 2; done;"
+
+    base="https://${PROJNAME}.ddev.site:8443"
+    token=$(curl -s --fail -X POST "${base}/realms/master/protocol/openid-connect/token" \
+        -d client_id=admin-cli -d username=admin -d password=password -d grant_type=password \
+        | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
+    [ -n "$token" ]
+
+    # Keycloak fetches 'fromUrl' itself, so this only succeeds when ddev's mkcert
+    # root CA is trusted by the JVM inside the keycloak container.
+    run curl -s --fail -X POST "${base}/admin/realms/master/identity-provider/import-config" \
+        -H "Authorization: Bearer ${token}" \
+        -H "Content-Type: application/json" \
+        -d "{\"providerId\":\"oidc\",\"fromUrl\":\"${base}/realms/master/.well-known/openid-configuration\"}"
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"authorizationUrl"* ]]
+}
