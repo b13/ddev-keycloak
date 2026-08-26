@@ -135,6 +135,35 @@ endpoints) always stay the browser-reachable `https://<project>.ddev.site:8443/.
 ones, even though the document was requested internally. The SSO redirects
 therefore work in the browser.
 
+### Keycloak calling back into your project
+
+The reverse direction works too: Keycloak may act as the *client* while your
+ddev project is the identity provider — identity brokering, social login, or an
+OIDC identity provider configured from a discovery document.
+
+That requires Keycloak to make an **outgoing** HTTPS request to
+`https://<project>.ddev.site`, which is served with a certificate signed by
+ddev's locally generated [mkcert](https://github.com/FiloSottile/mkcert) root
+CA. The add-on copies that root CA into Keycloak's truststore directory on every
+start, so the JVM inside the container trusts it and the request goes through:
+
+```
+https://<project>.ddev.site:8443/realms/<realm>/.well-known/openid-configuration
+```
+
+Check it with:
+
+```bash
+ddev exec -s keycloak ls -l /opt/keycloak/conf/truststores/
+ddev logs -s keycloak | grep -i truststore
+```
+
+> [!NOTE]
+> Only the public `rootCA.pem` is copied, never the CA private key, and Keycloak
+> keeps running as its regular unprivileged user with TLS verification intact.
+> On hosts without mkcert installed there is no CA to copy — Keycloak still
+> starts, it just will not trust the ddev certificate.
+
 ## Theming
 
 `.ddev/keycloak/themes` includes a basic example for the login theme called `ddev`.

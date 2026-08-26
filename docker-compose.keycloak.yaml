@@ -4,7 +4,16 @@ services:
     container_name: ddev-${DDEV_SITENAME}-keycloak
     hostname: ${DDEV_SITENAME}-keycloak
     image: ${KEYCLOAK_DOCKER_IMAGE:-quay.io/keycloak/keycloak:26.7}
-    command: start-dev --proxy-headers xforwarded --import-realm
+    # Wrapped so ddev's mkcert root CA lands in Keycloak's truststore directory,
+    # which Keycloak auto-loads. Without it, outgoing HTTPS calls from Keycloak to
+    # https://<project>.ddev.site (identity brokering, OIDC discovery) fail the TLS
+    # handshake. The copy is best-effort: hosts without mkcert simply get no CA.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        mkdir -p /opt/keycloak/conf/truststores;
+        cp -f /mnt/ddev-global-cache/mkcert/rootCA.pem /opt/keycloak/conf/truststores/ 2>/dev/null || true;
+        exec /opt/keycloak/bin/kc.sh start-dev --proxy-headers xforwarded --import-realm
     depends_on:
       - keycloak-database
     labels:
@@ -25,6 +34,7 @@ services:
       - KC_DB_URL_PORT=3306
       - KC_DB_URL=jdbc:mariadb://keycloak-database:3334/db?characterEncoding=UTF-8
     volumes:
+      - "ddev-global-cache:/mnt/ddev-global-cache:z"
       - "keycloak:/opt/keycloak/data/"
       - ".:/mnt/ddev_config"
       - "./keycloak/themes:/opt/keycloak/themes/"
