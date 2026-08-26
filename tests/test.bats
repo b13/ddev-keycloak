@@ -45,3 +45,20 @@
     [[ "$output" == *"Administration Console"* ]]
 }
 
+@test "Docker images are overridable via .ddev/.env.keycloak" {
+    cd "${TESTDIR}"
+
+    run docker inspect --format '{{.Config.Image}}' ddev-${PROJNAME}-keycloak
+    [ "$status" -eq 0 ]
+    [[ "$output" == "quay.io/keycloak/keycloak:26.0" ]]
+
+    ddev dotenv set .ddev/.env.keycloak --keycloak-docker-image="quay.io/keycloak/keycloak:26.1"
+    ddev restart -y >/dev/null
+
+    run docker inspect --format '{{.Config.Image}}' ddev-${PROJNAME}-keycloak
+    [ "$status" -eq 0 ]
+    [[ "$output" == "quay.io/keycloak/keycloak:26.1" ]]
+
+    rm -f .ddev/.env.keycloak
+    ddev restart -y >/dev/null
+}

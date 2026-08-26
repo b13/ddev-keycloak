@@ -3,7 +3,7 @@ services:
   keycloak:
     container_name: ddev-${DDEV_SITENAME}-keycloak
     hostname: ${DDEV_SITENAME}-keycloak
-    image: quay.io/keycloak/keycloak:26.0
+    image: ${KEYCLOAK_DOCKER_IMAGE:-quay.io/keycloak/keycloak:26.0}
     command: start-dev --proxy-headers xforwarded --import-realm
     depends_on:
       - keycloak-database
@@ -31,7 +31,7 @@ services:
       - ddev-router:$DDEV_HOSTNAME
   keycloak-database:
     container_name: ddev-${DDEV_SITENAME}-keycloak-database
-    image: mariadb:10.11
+    image: ${KEYCLOAK_DB_DOCKER_IMAGE:-mariadb:10.11}
     environment:
       - MYSQL_DATABASE=db
       - MYSQL_USER=db

@@ -7,3 +7,5 @@ project_files:
   - keycloak/themes/
   - commands/keycloak/kc
   - commands/host/kcctl
+
+ddev_version_constraint: '>= v1.23.5'
