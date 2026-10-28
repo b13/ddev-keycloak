@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #ddev-generated
 
-## Description: Create and destroy solr cores and configsets
-## Usage: kcctl <realm>
-## Example: ddev kcctl
+## Description: Import, export or delete the Keycloak configuration (realms and users)
+## Usage: kcctl import|export [realm]|delete|--help
+## Example: "ddev kcctl import" or "ddev kcctl export ddev" or "ddev kcctl delete"
 
 CONTAINER_NAME=ddev-"$DDEV_SITENAME"-keycloak
 CONTAINER_NAME_DB=ddev-"$DDEV_SITENAME"-keycloak-database
 
 set -eu -o pipefail
 
-CMD=$1
+CMD="${1:---help}"
 REALM_NAME="${2:-}"
 
 function restart() {
@@ -30,9 +30,10 @@ import)
     ;;
 
 export)
-    REALM=""
+    # Separate arguments for kc.sh, empty if all realms are exported
+    REALM_ARGS=()
     if [ "$REALM_NAME" != "" ]; then
-        REALM="--realm $REALM_NAME"
+        REALM_ARGS=(--realm "$REALM_NAME")
     fi
 
     if [ "$REALM_NAME" = "master" ]; then
@@ -41,8 +42,10 @@ export)
     fi
 
     export_data="$DDEV_APPROOT/.ddev/keycloak/import"
-    docker exec -u 0 -i "$CONTAINER_NAME" sh -c "rm -Rf /opt/keycloak/data/import/$REALM*"
-    ddev exec -s keycloak /opt/keycloak/bin/kc.sh export --users same_file "$REALM" --dir /opt/keycloak/data/import
+    # Remove previously exported files of the realm (all files if no realm is given)
+    docker exec -u 0 -i "$CONTAINER_NAME" sh -c "rm -Rf /opt/keycloak/data/import/${REALM_NAME}*"
+    # "${REALM_ARGS[@]+...}" keeps an empty array working with "set -u" in bash < 4.4 (macOS)
+    ddev exec -s keycloak /opt/keycloak/bin/kc.sh export --users same_file ${REALM_ARGS[@]+"${REALM_ARGS[@]}"} --dir /opt/keycloak/data/import
     docker exec -u 0 -i "$CONTAINER_NAME" sh -c 'rm -f /opt/keycloak/data/import/master-*'
     docker cp -q "$CONTAINER_NAME:/opt/keycloak/data/import/." "$export_data/"
     restart
@@ -61,17 +64,20 @@ delete)
     echo "——————————————"
     echo -e "\033[1mImport\033[0m"
     echo "—————"
-    echo "Push config to keycloak and import it"
+    echo "Copy .ddev/keycloak/import (<realm>-realm.json, <realm>-users-<n>.json) to Keycloak and restart it."
+    echo "Realms are only imported if they do not exist yet, use 'delete' first to re-import an existing realm."
     echo "👉 ddev kcctl import"
     echo ""
-    echo -e "\033[1mImport\033[0m"
+    echo -e "\033[1mExport\033[0m"
     echo "—————"
-    echo "Export current config (realms and users) to .ddev/keycloak/import"
-    echo "👉 ddev kcctl export <realm> - Exports all if no realm defined"
+    echo "Export the current configuration (realms and users) to .ddev/keycloak/import and restart Keycloak."
+    echo "Exports all realms except 'master' if no realm is given."
+    echo "👉 ddev kcctl export [realm]"
     echo ""
-    echo -e "\033[1mWipe\033[0m"
+    echo -e "\033[1mDelete\033[0m"
     echo "—————"
-    echo "Delete all realms and users"
+    echo "Delete the Keycloak database (all realms incl. 'master' and all users) and the imported files"
+    echo "in the container, then restart Keycloak. Changes made only in Keycloak are lost."
     echo "👉 ddev kcctl delete"
     ;;
 esac
